@@ -15,9 +15,15 @@ with h5py.File('D:/op/new/svmxunlian/GM_Features.mat', 'r') as f:
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# ✅ Step 3: 划分训练集与测试集（例如 80% 训练, 20% 测试）
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=42, stratify=y)
+# 🧠 示例：假设你有6个样本，你想用 0,1,2,4 做训练，3,5 做测试
+train_indices = [0,  4]
+test_indices = [3, 5]
+
+X_train = X_scaled[train_indices]
+y_train = y[train_indices]
+X_test = X_scaled[test_indices]
+y_test = y[test_indices]
+
 
 # ✅ Step 4: 初始化并训练 SVM 分类器（RBF核）
 svm_model = SVC(kernel='rbf', C=1.0, probability=True)
