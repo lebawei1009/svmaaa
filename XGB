@@ -1,0 +1,56 @@
+import h5py
+import numpy as np
+import matplotlib.pyplot as plt
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve
+from sklearn.preprocessing import StandardScaler
+
+# 加载数据
+with h5py.File('D:/op/new/svmxunlian/FeatureSets/ROI_Features.mat', 'r') as f:
+    X = np.array(f['roi_features']).T
+    y = np.array(f['labels']).T.ravel()
+
+# 类别平衡切分（先分开，再取相同数量）
+mcic_idx = np.where(y == 1)[0]
+mcinc_idx = np.where(y == 0)[0]
+n = min(len(mcic_idx), len(mcinc_idx))
+
+np.random.seed(42)
+np.random.shuffle(mcic_idx)
+np.random.shuffle(mcinc_idx)
+
+# 按比例切分（80%训练，20%测试）
+n_train = int(n * 0.8)
+train_idx = np.concatenate([mcic_idx[:n_train], mcinc_idx[:n_train]])
+test_idx = np.concatenate([mcic_idx[n_train:n], mcinc_idx[n_train:n]])
+
+# 提取训练/测试集
+X_train, y_train = X[train_idx], y[train_idx]
+X_test, y_test = X[test_idx], y[test_idx]
+
+# 归一化
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# 模型训练与评估
+model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+model.fit(X_train, y_train)
+y_pred = model.predict(X_test)
+y_prob = model.predict_proba(X_test)[:, 1]
+
+# 输出结果
+print("XGBoost Accuracy:", accuracy_score(y_test, y_pred))
+print("AUC:", roc_auc_score(y_test, y_prob))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+
+# 绘制 ROC 曲线
+fpr, tpr, _ = roc_curve(y_test, y_prob)
+plt.plot(fpr, tpr, label='XGBoost (AUC = %.2f)' % roc_auc_score(y_test, y_prob))
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlabel('FPR')
+plt.ylabel('TPR')
+plt.title('XGBoost ROC (Balanced Train/Test)')
+plt.legend()
+plt.grid(True)
+plt.show()
